@@ -8,7 +8,8 @@ from urllib.request import Request, urlopen
 from os.path import exists
 from shutil import move
 import language_tool_python
-
+import argparse
+parser = argparse.ArgumentParser()
 
 def spider(prefix, domain, exclude):
     return spider_rec(dict(), prefix, domain, "/", exclude)
@@ -64,8 +65,9 @@ def abbrev_num(n):
     return str(prefix) + abbrev
 
 
-def main():
-    print("Reading conf...")
+def main(report: bool):
+    if not report:
+        print("Reading conf...")
 
     conf = []
     with open('crawl.conf', 'r') as file:
@@ -79,11 +81,13 @@ def main():
     ignores = conf[5:conf.index("# Custom Dictionary         Ex: Strato")]
     custDict = conf[conf.index("# Custom Dictionary         Ex: Strato") + 1::]
 
-    print("Crawling site...")
+    if not report:
+        print("Crawling site...")
     links = spider(prefix, domain, ignores)
     date = datetime.datetime.utcnow()
 
-    print("Starting local language servers for")
+    if not report:
+        print("Starting local language servers for")
     tools = dict()
     langs = []
     for l in links.keys():
@@ -91,10 +95,12 @@ def main():
             langs.append(links[l][1])
 
     for lang in langs:
-        print("\t", lang + "...")
+        if not report:
+            print("\t", lang + "...")
         tools[lang] = language_tool_python.LanguageTool(lang)
 
-    print("Spell and grammar checking...")
+    if not report:
+        print("Spell and grammar checking...")
     links_matched = dict()
     all_matches = 0
     all_filtered_matches = 0
@@ -114,7 +120,8 @@ def main():
         if len(matches) > 0:
             links_matched[l] = matches
 
-    print()
+    if not report:
+        print()
     print("Potential errors:", all_matches, "\t", "Errors ignored:", all_matches - all_filtered_matches, "\t",
           "To Fix:", all_filtered_matches)
     print("Pages crawled:", len(links.keys()), "\t", "Pages w/ errors:", len(links_matched), "\t", "Error rate:",
@@ -146,7 +153,11 @@ def main():
 
         print(''.join(['='] * 100), "\n")
 
-    print("Done.")
+    if not report:
+        print("Done.")
 
 
-main()
+parser.add_argument("-r", "--report-only", action='store_true', dest='report', help="Silences status updates")
+args = parser.parse_args()
+
+main(args.report)
