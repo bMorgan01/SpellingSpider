@@ -22,6 +22,9 @@ def spider_rec(page_texts, prefix, domain, postfix, exclude):
     soup = bs4.BeautifulSoup(html_page, "lxml")
 
     page_texts[postfix] = [soup.getText(), soup.find_all('html')[0].get("lang")]
+    if page_texts[postfix][1] is None:
+        page_texts[postfix][1] = 'en-us'
+
     for link in soup.findAll('a'):
         href = link.get('href')
         if "mailto:" not in href and (domain in href or href[0] == '/'):
@@ -91,7 +94,7 @@ def main(report: bool):
     tools = dict()
     langs = []
     for l in links.keys():
-        if links[l][1] not in langs:
+        if links[l][1] not in langs and links[l][1] is not None:
             langs.append(links[l][1])
 
     for lang in langs:
