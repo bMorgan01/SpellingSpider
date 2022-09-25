@@ -47,7 +47,6 @@ def spider_rec(page_texts, current_href, base_parse, exclude):
                     if href_parse.query:
                         href += "?" + href_parse.query
 
-
                 if href not in page_texts.keys():
                     found = False
                     for d in exclude:
