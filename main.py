@@ -1,45 +1,53 @@
-import datetime
 import os
 import re
 from stat import S_ISFIFO
 import sys
+from urllib.parse import urlparse, urlunparse, urljoin
 import bs4
 from urllib.request import Request, urlopen
-from os.path import exists
-from shutil import move
 import language_tool_python
 import argparse
 parser = argparse.ArgumentParser()
 
-def spider(prefix, domain, exclude):
-    return spider_rec(dict(), prefix, domain, "/", exclude)
+
+def spider(target, exclude):
+    parsed_target = urlparse(target)
+    return spider_rec(dict(), target, parsed_target, exclude)
 
 
-def spider_rec(page_texts, prefix, domain, postfix, exclude):
-    req = Request(prefix + domain + postfix)
-    html_page = urlopen(req)
+def spider_rec(page_texts, current_href, base_parse, exclude):
+    target_url = urlunparse(base_parse)
+    parse_result = urlparse(urljoin(target_url, current_href))
+    req = Request(urlunparse(parse_result))
+    postfix = parse_result.path
 
-    soup = bs4.BeautifulSoup(html_page, "lxml")
+    if len(postfix) == 0:
+        postfix = "/"
 
-    page_texts[postfix] = [soup.getText(), soup.find_all('html')[0].get("lang")]
-    for link in soup.findAll('a'):
-        href = link.get('href')
-        if "mailto:" not in href and (domain in href or href[0] == '/'):
-            if href not in page_texts.keys():
-                found = False
-                for d in exclude:
-                    if d in href:
-                        found = True
-                        break
+    if parse_result.hostname == base_parse.hostname:
+        html_page = urlopen(req)
+        soup = bs4.BeautifulSoup(html_page, "lxml")
+        page_texts[postfix] = [soup.getText(), soup.find_all('html')[0].get("lang")]
 
-                if found:
-                    continue
+        for link in soup.findAll('a'):
+            href = link.get('href')
+            href = href.replace(" ", "%20")
 
-                href = href.replace(" ", "%20")
-                if domain in href:
-                    spider_rec(page_texts, "", "", href, exclude)
-                else:
-                    spider_rec(page_texts, prefix, domain, href, exclude)
+            if not urlparse(href).hostname:
+                href = urlparse(urljoin(target_url, href)).path
+
+            if "mailto:" not in href:
+                if href not in page_texts.keys():
+                    found = False
+                    for d in exclude:
+                        if d in href:
+                            found = True
+                            break
+
+                    if found:
+                        continue
+
+                    spider_rec(page_texts, href, base_parse, exclude)
 
     return page_texts
 
@@ -76,15 +84,13 @@ def main(report: bool):
             line = line.replace("\r", "")
             conf.append(line)
 
-    domain = conf[1]
-    prefix = conf[3]
-    ignores = conf[5:conf.index("# Custom Dictionary         Ex: Strato")]
+    target = conf[1]
+    ignores = conf[3:conf.index("# Custom Dictionary         Ex: Strato")]
     custDict = conf[conf.index("# Custom Dictionary         Ex: Strato") + 1::]
 
     if not report:
         print("Crawling site...")
-    links = spider(prefix, domain, ignores)
-    date = datetime.datetime.utcnow()
+    links = spider(target, ignores)
 
     if not report:
         print("Starting local language servers for")
