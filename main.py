@@ -1,3 +1,4 @@
+import configparser
 import os
 import re
 from stat import S_ISFIFO
@@ -87,16 +88,13 @@ def main(report: bool):
     if not report:
         print("Reading conf...")
 
-    conf = []
-    with open('crawl.conf', 'r') as file:
-        for line in file.readlines():
-            line = line.replace("\n", "")
-            line = line.replace("\r", "")
-            conf.append(line)
+    config = configparser.ConfigParser()
+    config.read('crawl.conf')
+    config = config['Config']
 
-    target = conf[1]
-    ignores = conf[3:conf.index("# Custom Dictionary         Ex: Strato")]
-    custDict = conf[conf.index("# Custom Dictionary         Ex: Strato") + 1::]
+    target = config['site']
+    ignores = config['ignore'].split(', ')
+    cust_dict = config['dictionary'].split(', ')
 
     if not report:
         print("Crawling site...")
@@ -130,7 +128,7 @@ def main(report: bool):
         matches = tools[links[l][1]].check(text)
         all_matches += len(matches)
         matches = [match for match in matches if
-                   match.context[match.offsetInContext:match.offsetInContext + match.errorLength] not in custDict]
+                   match.context[match.offsetInContext:match.offsetInContext + match.errorLength] not in cust_dict]
         all_filtered_matches += len(matches)
 
         if len(matches) > 0:
